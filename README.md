@@ -40,9 +40,9 @@ Please note that not all formats are supported for every video.
 Option `-n` prints out the IDs and titles of the given videos without
 downloading them.  Combining with option `-c FILE`, which tracks
 videos that have been downloaded using FILE, you can filter out
-certain videos in a play list that you do not want by their titles.
-For example, if you want to download videos from a play list without
-*Rick* in the title, you can first print out the play list as follows,
+certain videos by their titles.  For example, if you want to download
+videos from a play list without *Rick* in the title, you can first
+print out the play list as follows,
 
 ```
 $ sh downtube.sh -n http://www.youtube.com/playlist?list=PL8496A23849C610C1 >playlist.txt
