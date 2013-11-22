@@ -160,6 +160,8 @@ while [ -n "$*" ]; do
     OPTIND=0
 done
 
+[ -z "`echo $vids`" ] && return 3
+
 ret=0
 for vid in $vids; do
     downtube_get "$vid" || ret=1
