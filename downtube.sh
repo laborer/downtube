@@ -66,12 +66,10 @@ usage() {
 }
 
 info_parse() {
-    echo "&$1" |
-    grep -m 1 -o '&'"$2"'=[^&]*' |
-    sed 's@^[^=]*=@@; s@\\@\\\\@g; s@%@\\x@g' |
-    while read -r input; do
-	/usr/bin/printf "$input\n"
-    done
+    dat=`echo "&$1" |
+        grep -m 1 -o '&'"$2"'=[^&]*' |
+        sed 's@^[^=]*=@@; s@\\\\@\\\\\\\\@g; s@%@\\\\x@g'`
+    /usr/bin/printf "$dat\n"
 }
 
 downtube_vid() {
@@ -96,7 +94,7 @@ downtube_get() {
 	addr='http://www.youtube.com/get_video_info?ps=default&eurl=&gl=US&hl=en'
 	addr="${addr}&el=$i"
 	addr="${addr}&video_id=$1"
-	info=`wget -O - -q "$addr" | tee test.txt` || continue
+	info=`wget -O - -q "$addr"` || continue
 
 	token=`info_parse "$info" token`
 	[ -n "$token" ] && break
