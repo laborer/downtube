@@ -66,10 +66,30 @@ usage() {
 }
 
 info_parse() {
-    dat=`echo "&$1" |
-        grep -m 1 -o '&'"$2"'=[^&]*' |
-        sed 's@^[^=]*=@@; s@\\\\@\\\\\\\\@g; s@%@\\\\x@g'`
-    /usr/bin/printf "$dat\n"
+    dat=$(echo "&$1" |
+          grep -m 1 -o '&'"$2"'=[^&]*' |
+          sed 's@^[^=]*=@@; s@\\@\\\\@g; s@%@\\x@g')
+    if echo -e '\x3D' | grep -q '='; then
+        echo -e "$dat\n"
+    elif /usr/bin/printf '\x3D' | grep -q '='; then
+        /usr/bin/printf "$dat\n"
+    fi
+}
+
+http_contents() {
+    if hash wget 2>/dev/null; then
+        wget -O - -q "$1"
+    elif hash curl 2>/dev/null; then
+        curl -L -s "$1"
+    fi
+}
+
+http_download() { 
+    if hash wget 2>/dev/null; then
+        wget -c -O "$2" "$1"
+    elif hash curl 2>/dev/null; then
+        curl -L -C - -o "$2" "$1"
+    fi
 }
 
 downtube_vid() {
@@ -78,12 +98,12 @@ downtube_vid() {
     [ -z "$pid" ] && pid=`echo "$1" | grep '/user/' | grep -o '[^/]*$'`
 
     if [ -z "$pid" ]; then
-	echo "$1" | grep -o '\(&\|?\)v=[^&#]*' | sed 's@.*=@@'
+        echo "$1" | grep -o '\(&\|?\)v=[^&#]*' | sed 's@.*=@@'
     else
-	wget -O - -q "http://www.youtube.com/view_play_list?p=$pid" |
+        http_contents "http://www.youtube.com/view_play_list?p=$pid" |
         grep -o ' href="/watch?v=[^"]*list=..'${pid#??} |
         sed 's@.*v=@@; s@&.*@@' |
-	uniq
+        uniq
     fi
 }
 
@@ -91,13 +111,13 @@ downtube_get() {
     grep -q "^$1" "$COMPLETED" && return 0
 
     for i in embedded detailpage vevo; do
-	addr='http://www.youtube.com/get_video_info?ps=default&eurl=&gl=US&hl=en'
-	addr="${addr}&el=$i"
-	addr="${addr}&video_id=$1"
-	info=`wget -O - -q "$addr"` || continue
+        addr='http://www.youtube.com/get_video_info?ps=default&eurl=&gl=US&hl=en'
+        addr="${addr}&el=$i"
+        addr="${addr}&video_id=$1"
+        info=`http_contents "$addr"` || continue
 
-	token=`info_parse "$info" token`
-	[ -n "$token" ] && break
+        token=`info_parse "$info" token`
+        [ -n "$token" ] && break
     done
     [ -z "$token" ] && return 1
 
@@ -127,7 +147,7 @@ downtube_get() {
         eval codec=\$itag_$i
         file="${title}-$1-$i.${codec%%,*}"
 
-    	if wget -c -O "$file" "$addr"; then
+        if http_download "$addr" "$file"; then
             echo "$1 $title" >>"$COMPLETED"
             return 0
         fi
@@ -135,6 +155,8 @@ downtube_get() {
 
     return 1
 }
+
+shopt -u xpg_echo 2>/dev/null
 
 #FORMATS='38 46 37 22 45 35 44 34 18 43 6 5 17 13'
 FORMATS='22 35 34 18'
@@ -145,24 +167,24 @@ while [ -n "$*" ]; do
     if getopts nc:f:h key $@; then
         case $key in
             n) DRYRUN="yes";;
-	    c) COMPLETED="$OPTARG";;
-	    f) FORMATS="$OPTARG";;
+            c) COMPLETED="$OPTARG";;
+            f) FORMATS="$OPTARG";;
             h) usage; exit;;
         esac
         shift `expr $OPTIND - 1`
     else
-	ret=`downtube_vid "$1"`
+        ret=`downtube_vid "$1"`
         vids="$vids $ret"
         shift
     fi
     OPTIND=0
 done
 
-[ -z "`echo $vids`" ] && return 3
+[ -z "`echo $vids`" ] && exit 3
 
 ret=0
 for vid in $vids; do
     downtube_get "$vid" || ret=1
 done
 
-return $ret
+exit $ret
